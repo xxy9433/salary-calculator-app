@@ -1,0 +1,19 @@
+name: Supabase保活任务
+on:
+  # 定时触发：每6天UTC时间18点（北京时间次日2点）执行
+  schedule:
+    - cron: '0 18 */6 * *'
+  # 支持手动触发
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 轻量访问Supabase接口保活
+        run: |
+          curl -X GET "https://mjtkqsosgpfhwmmkspku.supabase.co/rest/v1/" \
+          -H "apikey: sb_publishable_VxtZFH7hjsrQJMv_2DsCyA_9J505P9j" \
+          -H "Authorization: Bearer sb_publishable_VxtZFH7hjsrQJMv_2DsCyA_9J505P9j" \
+          -m 10
+        continue-on-error: true
