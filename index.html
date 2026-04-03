@@ -59,6 +59,7 @@
     .btn-bind{background:#34c759}
     .btn-upload{background:#5ac8fa}
     .btn-download{background:#ff9500}
+    .sync-warning{color:#ff3b30;font-size:12px;text-align:center;margin-top:8px;padding:4px;background:#fff0f0;border-radius:6px}
     .config-item{display:flex;align-items:center;gap:8px;margin:8px 0}
     .config-item label{flex:1;margin:0}
     .config-item input{flex:2}
@@ -194,6 +195,7 @@
         <button class="btn-upload" id="uploadBtn" onclick="syncUpload()">上传到云端</button>
         <button class="btn-download" id="downloadBtn" onclick="syncDownload()">从云端下载（合并）</button>
       </div>
+      <div class="sync-warning">⚠️ 合并数据时提示合并条数有显示bug，不再进行修复，以实际为准</div>
     </div>
   </div>
   <div class="card">
@@ -659,7 +661,6 @@ function showSub(subId){ document.querySelectorAll(".top-tab-btn").forEach(b=>b.
 function refreshSyncUI(){ const st=document.getElementById("syncStatus"); if(syncAccount) st.innerText=`已绑定：${syncAccount}`; else st.innerText="未绑定同步账号"; document.getElementById("syncAccount").value=syncAccount; }
 async function bindAccount(){ const val=document.getElementById("syncAccount").value.trim(); if(!val) return toast("请输入账号"); if(!/^[a-zA-Z0-9_]+$/.test(val)) return toast("只能字母数字下划线"); setButtonsLoading(true); try{ syncAccount=val; localStorage.setItem("syncAccount",syncAccount); refreshSyncUI(); toast("绑定成功，云端已就绪"); }catch(e){ toast("绑定失败"); }finally{ setButtonsLoading(false); } }
 
-// ========== 修复：云端下载合并时新增记录数量提示不准确 ==========
 async function syncDownload(){ 
   if(!syncAccount) return toast("请先绑定账号"); 
   if(!confirm("合并云端数据到本地？")) return; 
@@ -671,7 +672,6 @@ async function syncDownload(){
     if(!cloudData){ toast("云端无数据"); return; } 
     
     const cloudRecords = (cloudData.records || []).map(r => {
-      // 确保每条记录都有必要的字段
       if (r.extra === undefined) r.extra = 0;
       if (r.factor === undefined) r.factor = 1;
       if (r.output === undefined) r.output = 0;
@@ -681,20 +681,16 @@ async function syncDownload(){
       return r;
     });
     
-    // 构建本地记录的唯一标识集合（id + 业务键）
     const localIds = new Set(records.map(x => x.id));
-    // 更精确的业务键：包含所有关键字段，避免因浮点精度导致误判
     const localBizKeys = new Set(records.map(r => 
       `${r.date}|${r.type}|${r.model || ''}|${r.output}|${r.factor}|${r.extra}|${r.salary.toFixed(6)}`
     ));
     
-    // 筛选真正需要新增的记录
     const newRecords = cloudRecords.filter(r => {
       const bizKey = `${r.date}|${r.type}|${r.model || ''}|${r.output}|${r.factor}|${r.extra}|${r.salary.toFixed(6)}`;
       return !localIds.has(r.id) && !localBizKeys.has(bizKey);
     });
     
-    // 记录实际新增数量
     const addedCount = newRecords.length;
     
     if (addedCount === 0) {
@@ -703,39 +699,26 @@ async function syncDownload(){
       return;
     }
     
-    // 合并记录
     records = [...records, ...newRecords];
-    
-    // 合并系数库
     factorMap = { ...factorMap, ...(cloudData.factorMap || {}) };
     factorMap = Object.keys(factorMap).reduce((obj, key) => {
       obj[key.toUpperCase()] = factorMap[key];
       return obj;
     }, {});
-    
-    // 合并配置（本地已有配置优先保留，但云端配置作为补充）
     config = { ...(cloudData.config || { extraPrice: 18, defaultJob: "fine" }), ...config };
     config.extraPrice = Number(config.extraPrice) || 18;
-    
-    // 合并阶梯配置（本地已有阶梯配置优先，但云端可能有自定义）
     stepConfig = { ...(cloudData.stepConfig || DEFAULT_STEP), ...stepConfig };
-    
-    // 强制纠正第三档价格为正确值（防止旧错误数据）
     enforceCorrectStepPrices();
-    // 规范化所有工种阶梯
     ['fine', 'center', 'rough'].forEach(job => normalizeSteps(job));
     
-    // 保存所有数据到本地存储
     localStorage.setItem("records", JSON.stringify(records));
     localStorage.setItem("factorMap", JSON.stringify(factorMap));
     localStorage.setItem("salaryConfig", JSON.stringify(config));
     localStorage.setItem("stepConfig", JSON.stringify(stepConfig));
     
-    // 重新加载配置和UI
     loadConfig();
     initDefaultJob();
     renderRecords();
-    // 刷新阶梯列表显示
     renderStepList('fine');
     renderStepList('center');
     renderStepList('rough');
