@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>工资计算器 - 精准阶梯累进</title>
+  <title>工资计算器 - 全能版</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"微软雅黑",sans-serif}
     body{max-width:450px;margin:0 auto;background:#f5f7fa;padding:8px}
@@ -34,9 +34,31 @@
     .btn-row button{flex:1;padding:9px;border:none;border-radius:10px;font-size:15px}
     .btn-save{background:#007aff;color:#fff}
     .btn-clear{background:#ff3b30;color:#fff}
-    table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow-x:auto;display:block}
-    th,td{border:1px solid #f1f3f5;padding:5px 3px;font-size:11px;text-align:center;line-height:1.3;word-break:break-word}
-    th{background:#f9fafb;font-weight:500}
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 10px;
+      overflow-x: auto;
+      display: block;
+      border: 3px solid #333;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 5px 3px;
+      font-size: 11px;
+      text-align: center;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+    th {
+      background: #f9fafb;
+      font-weight: 500;
+    }
+    .date-group-start td,
+    .date-group-start th {
+      border-top: 2px solid #666;
+    }
     .cell-line{display:block;line-height:1.3}
     .del-btn{background:#ff3b30;color:#fff;border:none;padding:3px 6px;border-radius:4px;font-size:11px;cursor:pointer}
     .month-total{background:#007aff;color:#fff;text-align:center;padding:8px;border-radius:10px;margin-bottom:8px}
@@ -89,6 +111,66 @@
     th:nth-child(10), td:nth-child(10) { min-width: 3.8em; max-width: 4.5em; word-break: break-word; white-space: normal; }
     th, td { white-space: normal; word-break: break-word; }
     td[rowspan] { vertical-align: middle; }
+
+    .global-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 10000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      backdrop-filter: blur(2px);
+    }
+    .global-loading .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+    .global-loading span {
+      color: white;
+      font-size: 14px;
+      background: rgba(0,0,0,0.6);
+      padding: 6px 12px;
+      border-radius: 20px;
+    }
+    .trash-btn {
+      background: #ff9500;
+      margin-left: 8px;
+    }
+    .sub-tab {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .sub-tab button {
+      flex: 1;
+      padding: 6px;
+      background: #f1f3f5;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .sub-tab button.active {
+      background: #007aff;
+      color: white;
+    }
+    .month-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
   </style>
 </head>
 <body>
@@ -105,163 +187,60 @@
 <div id="calc" class="page active">
   <div id="auto" class="sub-page active">
     <div class="card">
-      <div class="item">
-        <label>日期</label>
-        <div class="date-row">
-          <select id="year"></select>
-          <select id="month"></select>
-          <select id="day"></select>
-        </div>
-      </div>
-      <div class="item">
-        <label>工种</label>
-        <div class="job-type" id="calcJobType">
-          <label><input type="radio" name="job" value="fine" checked><span>精车</span></label>
-          <label><input type="radio" name="job" value="center"><span>加工中心</span></label>
-          <label><input type="radio" name="job" value="rough"><span>粗车</span></label>
-        </div>
-      </div>
+      <div class="item"><label>日期</label><div class="date-row"><select id="year"></select><select id="month"></select><select id="day"></select></div></div>
+      <div class="item"><label>工种</label><div class="job-type" id="calcJobType"><label><input type="radio" name="job" value="fine" checked><span>精车</span></label><label><input type="radio" name="job" value="center"><span>加工中心</span></label><label><input type="radio" name="job" value="rough"><span>粗车</span></label></div></div>
       <div class="item"><label>备注</label><input id="remark" placeholder="选填"></div>
       <div class="item"><label>产品型号</label><input id="model" placeholder="字母自动转大写；输入自动匹配系数"></div>
-      <div class="row-3">
-        <div class="item"><label>产量</label><input type="number" id="output" min="0" step="1" value="0"></div>
-        <div class="item"><label>系数</label><input type="number" id="factor" value="1.0" step="0.01" min="0"></div>
-        <div class="item"><label>补工时(小时)</label><input type="number" id="extra" value="0" step="0.1" min="0"></div>
-      </div>
+      <div class="row-3"><div class="item"><label>产量</label><input type="number" id="output" min="0" step="1" value="0"></div><div class="item"><label>系数</label><input type="number" id="factor" value="1.0" step="0.01" min="0"></div><div class="item"><label>补工时(小时)</label><input type="number" id="extra" value="0" step="0.1" min="0"></div></div>
     </div>
-    <div class="result-card">
-      <div id="avg">平均单价：¥0.00</div>
-      <div id="total" style="margin-top:4px;font-size:16px">总额：¥0.00</div>
-    </div>
-    <div class="btn-row">
-      <button class="btn-save" onclick="saveAuto()">保存</button>
-      <button class="btn-clear" onclick="clearAuto()">清空</button>
-    </div>
+    <div class="result-card"><div id="avg">平均单价：¥0.00</div><div id="total" style="margin-top:4px;font-size:16px">总额：¥0.00</div></div>
+    <div class="btn-row"><button class="btn-save" onclick="saveAuto()">保存</button><button class="btn-clear" onclick="clearAuto()">清空</button></div>
   </div>
   <div id="manual" class="sub-page">
-    <div class="card">
-      <div class="item">
-        <label>日期</label>
-        <div class="date-row">
-          <select id="mYear"></select>
-          <select id="mMonth"></select>
-          <select id="mDay"></select>
-        </div>
-      </div>
-      <div class="item"><label>型号</label><input id="mModel" placeholder="字母自动转大写"></div>
-      <div class="item"><label>工资金额</label><input type="number" id="mSalary" min="0" step="0.01" oninput="renderManualResult()"></div>
-      <div class="item"><label>备注</label><input id="mRemark"></div>
-    </div>
-    <div class="result-card" style="margin-bottom:10px">
-      <div id="mTotal" style="font-size:16px">金额：¥0.00</div>
-    </div>
-    <div class="btn-row">
-      <button class="btn-save" onclick="saveManual()">保存</button>
-      <button class="btn-clear" onclick="clearManual()">清空</button>
-    </div>
+    <div class="card"><div class="item"><label>日期</label><div class="date-row"><select id="mYear"></select><select id="mMonth"></select><select id="mDay"></select></div></div><div class="item"><label>型号</label><input id="mModel" placeholder="字母自动转大写"></div><div class="item"><label>工资金额</label><input type="number" id="mSalary" min="0" step="0.01" oninput="renderManualResult()"></div><div class="item"><label>备注</label><input id="mRemark"></div></div>
+    <div class="result-card" style="margin-bottom:10px"><div id="mTotal" style="font-size:16px">金额：¥0.00</div></div>
+    <div class="btn-row"><button class="btn-save" onclick="saveManual()">保存</button><button class="btn-clear" onclick="clearManual()">清空</button></div>
   </div>
 </div>
 <div id="records" class="page">
   <div class="card">
-    <div class="item"><label>选择月份</label><input type="month" id="recordMonth" onchange="renderRecords()"></div>
-    <div class="record-nav">
-      <button onclick="prevMonth()">←上月</button>
-      <button onclick="nextMonth()">下月→</button>
+    <div class="sub-tab"><button id="showRecordsTab" class="active" onclick="switchRecordView('records')">正常记录</button><button id="showTrashTab" onclick="switchRecordView('trash')">回收站</button></div>
+    <div id="normalRecordsView">
+      <div class="month-header">
+        <div class="item" style="flex:1; margin:0;"><label>选择月份</label><input type="month" id="recordMonth" onchange="renderRecords()"></div>
+      </div>
+      <div class="record-nav"><button onclick="prevMonth()">←上月</button><button onclick="nextMonth()">下月→</button></div>
+      <div class="month-total" id="monthMoney">当月总计：¥0.00</div>
+      <div class="record-stats"><div class="record-stat-item">总产量：<span id="outTotal">0</span></div><div class="record-stat-item">精车：<span id="outFine">0</span></div><div class="record-stat-item">加工中心：<span id="outCenter">0</span></div><div class="record-stat-item">粗车：<span id="outRough">0</span></div></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>序号</th><th>日期</th><th>类型</th><th>型号</th><th>数量</th><th>系数</th><th>工时(h)</th><th>工资</th><th>小计</th><th>备注</th><th>操作</th></tr></thead><tbody id="recordList"></tbody></table></div>
     </div>
-    <div class="month-total" id="monthMoney">当月总计：¥0.00</div>
-    <div class="record-stats">
-      <div class="record-stat-item">总产量：<span id="outTotal">0</span></div>
-      <div class="record-stat-item">精车：<span id="outFine">0</span></div>
-      <div class="record-stat-item">加工中心：<span id="outCenter">0</span></div>
-      <div class="record-stat-item">粗车：<span id="outRough">0</span></div>
-    </div>
-    <div style="overflow-x:auto">
-      <table>
-        <thead>
-          <tr><th>序号</th><th>日期</th><th>类型</th><th>型号</th><th>数量</th><th>系数</th><th>工时(h)</th><th>工资</th><th>小计</th><th>备注</th><th>删</th></tr>
-        </thead>
-        <tbody id="recordList"></tbody>
-      </table>
+    <div id="trashRecordsView" style="display:none;">
+      <div style="margin-bottom:10px;display:flex;gap:8px;"><button onclick="emptyTrash()" style="flex:1;background:#ff3b30;color:#fff;border:none;padding:8px;border-radius:8px;">清空回收站</button><button onclick="restoreAllTrash()" style="flex:1;background:#34c759;color:#fff;border:none;padding:8px;border-radius:8px;">全部恢复</button></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>序号</th><th>删除日期</th><th>原日期</th><th>类型</th><th>型号</th><th>工资</th><th>备注</th><th>操作</th></tr></thead><tbody id="trashList"></tbody></table></div>
     </div>
   </div>
 </div>
 <div id="settings" class="page">
-  <div class="sync-card">
-    <div class="sync-status" id="syncStatus">未绑定同步账号</div>
-    <div class="sync-form">
-      <input id="syncAccount" placeholder="设置一个同步账号（字母数字组合）" type="text">
-      <div class="sync-btns">
-        <button class="btn-bind" id="bindBtn" onclick="bindAccount()">绑定/切换账号</button>
-        <button class="btn-upload" id="uploadBtn" onclick="syncUpload()">上传到云端</button>
-        <button class="btn-download" id="downloadBtn" onclick="syncDownload()">从云端下载（合并）</button>
-      </div>
-      <div class="sync-warning">⚠️ 合并数据时提示合并条数有显示bug，不再进行修复，以实际为准</div>
-    </div>
-  </div>
-  <div class="card">
-    <h3 style="text-align:center;margin-bottom:10px;font-size:16px">基础配置</h3>
-    <div class="config-item">
-      <label>补工时单价（元/小时）</label>
-      <input type="number" id="extraPrice" min="0" step="0.01" onchange="saveConfig()">
-    </div>
-    <div class="default-job-config">
-      <div class="default-job-title">默认工种选择</div>
-      <div class="default-job-radio" id="defaultJobRadio">
-        <label><input type="radio" name="defaultJob" value="fine" checked><span>精车</span></label>
-        <label><input type="radio" name="defaultJob" value="center"><span>加工中心</span></label>
-        <label><input type="radio" name="defaultJob" value="rough"><span>粗车</span></label>
-      </div>
-      <button onclick="saveDefaultJob()" style="width:100%;margin-top:8px;padding:8px;background:#007aff;color:#fff;border:none;border-radius:8px;font-size:14px">保存默认工种</button>
-    </div>
-    <div class="step-config-section">
-      <h3 style="text-align:center;margin:14px 0 8px;font-size:16px">阶梯价格配置</h3>
-      <div class="step-job-block" data-job="fine">
-        <div class="step-job-title"><h4>精车</h4><button class="btn-reset-job" onclick="resetJobStep('fine')">恢复默认</button></div>
-        <div id="stepList_fine"></div>
-        <button class="btn-add-step" onclick="addStep('fine')">+ 添加阶梯</button>
-      </div>
-      <div class="step-job-block" data-job="center">
-        <div class="step-job-title"><h4>加工中心</h4><button class="btn-reset-job" onclick="resetJobStep('center')">恢复默认</button></div>
-        <div id="stepList_center"></div>
-        <button class="btn-add-step" onclick="addStep('center')">+ 添加阶梯</button>
-      </div>
-      <div class="step-job-block" data-job="rough">
-        <div class="step-job-title"><h4>粗车</h4><button class="btn-reset-job" onclick="resetJobStep('rough')">恢复默认</button></div>
-        <div id="stepList_rough"></div>
-        <button class="btn-add-step" onclick="addStep('rough')">+ 添加阶梯</button>
-      </div>
-      <div class="step-buttons">
-        <button class="btn-save-step" onclick="saveStepConfig()">保存阶梯设置</button>
-        <button class="btn-reset-all" onclick="resetAllStep()">恢复全部默认</button>
-      </div>
-    </div>
-    <button onclick="openDb()" style="width:100%;padding:10px;background:#007aff;color:#fff;border:none;border-radius:10px;margin-top:10px">产品系数库</button>
+  <div class="sync-card"><div class="sync-status" id="syncStatus">未绑定同步账号</div><div class="sync-form"><input id="syncAccount" placeholder="设置一个同步账号（字母数字组合）" type="text"><div class="sync-btns"><button class="btn-bind" id="bindBtn" onclick="bindAccount()">绑定/切换账号</button><button class="btn-upload" id="uploadBtn" onclick="syncUpload()">上传到云端</button><button class="btn-download" id="downloadBtn" onclick="syncDownload()">从云端下载（合并）</button></div></div><div class="sync-warning">⚠️ 云端操作时请勿关闭页面</div></div>
+  <div class="card"><h3 style="text-align:center;margin-bottom:10px;font-size:16px">基础配置</h3><div class="config-item"><label>补工时单价（元/小时）</label><input type="number" id="extraPrice" min="0" step="0.01" onchange="saveConfig()"></div><div class="default-job-config"><div class="default-job-title">默认工种选择</div><div class="default-job-radio" id="defaultJobRadio"><label><input type="radio" name="defaultJob" value="fine" checked><span>精车</span></label><label><input type="radio" name="defaultJob" value="center"><span>加工中心</span></label><label><input type="radio" name="defaultJob" value="rough"><span>粗车</span></label></div><button onclick="saveDefaultJob()" style="width:100%;margin-top:8px;padding:8px;background:#007aff;color:#fff;border:none;border-radius:8px;font-size:14px">保存默认工种</button></div>
+    <div class="step-config-section"><h3 style="text-align:center;margin:14px 0 8px;font-size:16px">阶梯价格配置</h3><div class="step-job-block" data-job="fine"><div class="step-job-title"><h4>精车</h4><button class="btn-reset-job" onclick="resetJobStep('fine')">恢复默认</button></div><div id="stepList_fine"></div><button class="btn-add-step" onclick="addStep('fine')">+ 添加阶梯</button></div><div class="step-job-block" data-job="center"><div class="step-job-title"><h4>加工中心</h4><button class="btn-reset-job" onclick="resetJobStep('center')">恢复默认</button></div><div id="stepList_center"></div><button class="btn-add-step" onclick="addStep('center')">+ 添加阶梯</button></div><div class="step-job-block" data-job="rough"><div class="step-job-title"><h4>粗车</h4><button class="btn-reset-job" onclick="resetJobStep('rough')">恢复默认</button></div><div id="stepList_rough"></div><button class="btn-add-step" onclick="addStep('rough')">+ 添加阶梯</button></div><div class="step-buttons"><button class="btn-save-step" onclick="saveStepConfig()">保存阶梯设置</button><button class="btn-reset-all" onclick="resetAllStep()">恢复全部默认</button></div></div>
+    <div style="margin-top:12px;"><button onclick="openDb()" style="width:100%;background:#007aff;color:#fff;border:none;padding:10px;border-radius:8px;">产品系数库</button></div>
   </div>
 </div>
-<div class="modal" id="dbModal">
-  <div class="modal-content">
-    <h3 style="text-align:center;margin-bottom:10px">系数库</h3>
-    <div id="dbList"></div>
-    <div class="db-item">
-      <input id="newModel" placeholder="字母自动转大写；输入型号">
-      <input id="newFactor" placeholder="系数" type="number" step="0.01" min="0">
-      <button onclick="addFactor()">+</button>
-    </div>
-    <button onclick="closeDb()" style="margin-top:12px;width:100%;padding:8px;background:#007aff;color:#fff;border:none;border-radius:8px">关闭</button>
-  </div>
-</div>
+<div class="modal" id="dbModal"><div class="modal-content"><h3 style="text-align:center;margin-bottom:10px">系数库</h3><div id="dbList"></div><div class="db-item"><input id="newModel" placeholder="字母自动转大写；输入型号"><input id="newFactor" placeholder="系数" type="number" step="0.01" min="0"><button onclick="addFactor()">+</button></div><button onclick="closeDb()" style="margin-top:12px;width:100%;padding:8px;background:#007aff;color:#fff;border:none;border-radius:8px">关闭</button></div></div>
 <div class="toast" id="toast"></div>
+<div class="global-loading" id="globalLoading"><div class="spinner"></div><span>加载中...</span></div>
+
 <script>
 // ======================== 基础配置 ========================
 const SUPABASE_URL = "https://mjtkqsosgpfhwmmkspku.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_VxtZFH7hjsrQJMv_2DsCyA_9J505P9j";
 let records = [];
+let trash = [];
 let factorMap = {};
 let config = { extraPrice: 18, defaultJob: "fine" };
 let syncAccount = localStorage.getItem("syncAccount") || "";
 let cloudInitialized = false;
-
-// 正确的默认阶梯配置 (第三档为无上限且价格正确)
 const DEFAULT_STEP = {
   fine:   [{ limit: 90, price: 1.9 }, { limit: 100, price: 2.35 }, { limit: Infinity, price: 2.88 }],
   center: [{ limit: 90, price: 1.53 }, { limit: 100, price: 2.03 }, { limit: Infinity, price: 2.53 }],
@@ -269,73 +248,132 @@ const DEFAULT_STEP = {
 };
 let stepConfig = JSON.parse(JSON.stringify(DEFAULT_STEP));
 
+function showLoading() { document.getElementById("globalLoading").style.display = "flex"; }
+function hideLoading() { document.getElementById("globalLoading").style.display = "none"; }
 function toast(text) { const t = document.getElementById("toast"); t.innerText = text; t.style.display = "block"; setTimeout(() => t.style.display = "none", 2000); }
-function setButtonsLoading(loading) {
-  const btns = ["bindBtn","uploadBtn","downloadBtn"];
-  btns.forEach(id => { const btn = document.getElementById(id); if(btn) btn.disabled = loading; });
+function setButtonsLoading(loading) { const btns = ["bindBtn","uploadBtn","downloadBtn"]; btns.forEach(id => { const btn = document.getElementById(id); if(btn) btn.disabled = loading; }); }
+
+function saveTrash() { localStorage.setItem("trash", JSON.stringify(trash)); }
+function loadTrash() { trash = JSON.parse(localStorage.getItem("trash") || "[]"); }
+
+function moveToTrash(recordId) {
+  const index = records.findIndex(r => r.id == recordId);
+  if (index === -1) return false;
+  const deletedRecord = records[index];
+  deletedRecord.deletedAt = Date.now();
+  trash.unshift(deletedRecord);
+  records.splice(index, 1);
+  persistRecords();
+  saveTrash();
+  renderRecords();
+  renderTrashList();
+  toast("已移至回收站，可在回收站中恢复");
+  return true;
 }
 
-// 确保阶梯数据正确，特别是第三档价格强制纠正
+function restoreFromTrash(trashId) {
+  const idx = trash.findIndex(t => t.id == trashId);
+  if (idx === -1) return;
+  const restored = trash[idx];
+  delete restored.deletedAt;
+  records.push(restored);
+  trash.splice(idx, 1);
+  persistRecords();
+  saveTrash();
+  renderRecords();
+  renderTrashList();
+  toast("已恢复记录");
+}
+function restoreAllTrash() {
+  if (trash.length === 0) return toast("回收站为空");
+  records.push(...trash.map(t => { delete t.deletedAt; return t; }));
+  trash = [];
+  persistRecords();
+  saveTrash();
+  renderRecords();
+  renderTrashList();
+  toast("已恢复所有记录");
+}
+function emptyTrash() {
+  if (trash.length === 0) return toast("回收站已空");
+  if (confirm("永久清空回收站？不可恢复！")) {
+    trash = [];
+    saveTrash();
+    renderTrashList();
+    toast("回收站已清空");
+  }
+}
+function renderTrashList() {
+  const tbody = document.getElementById("trashList");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  trash.forEach((item, idx) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${idx+1}</td>
+      <td>${new Date(item.deletedAt).toLocaleDateString()}</td>
+      <td>${item.date}</td>
+      <td>${item.type}</td>
+      <td>${item.model || '-'}</td>
+      <td>¥${item.salary.toFixed(2)}</td>
+      <td>${item.remark || '-'}</td>
+      <td><button class="del-btn" style="background:#34c759;" onclick="restoreFromTrash('${item.id}')">恢复</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+function switchRecordView(view) {
+  const normalDiv = document.getElementById("normalRecordsView");
+  const trashDiv = document.getElementById("trashRecordsView");
+  const normalBtn = document.getElementById("showRecordsTab");
+  const trashBtn = document.getElementById("showTrashTab");
+  if (view === 'records') {
+    normalDiv.style.display = "block";
+    trashDiv.style.display = "none";
+    normalBtn.classList.add("active");
+    trashBtn.classList.remove("active");
+    renderRecords();
+  } else {
+    normalDiv.style.display = "none";
+    trashDiv.style.display = "block";
+    trashBtn.classList.add("active");
+    normalBtn.classList.remove("active");
+    renderTrashList();
+  }
+}
+
 function enforceCorrectStepPrices() {
   const correctPrices = { fine: 2.88, center: 2.53, rough: 2.7 };
   for (let job of ['fine', 'center', 'rough']) {
     let steps = stepConfig[job];
-    if (!steps || !Array.isArray(steps)) {
-      stepConfig[job] = JSON.parse(JSON.stringify(DEFAULT_STEP[job]));
-      continue;
-    }
+    if (!steps || !Array.isArray(steps)) { stepConfig[job] = JSON.parse(JSON.stringify(DEFAULT_STEP[job])); continue; }
     let infiniteIdx = -1;
-    for (let i = 0; i < steps.length; i++) {
-      if (!isFinite(steps[i].limit)) {
-        infiniteIdx = i;
-        break;
-      }
-    }
-    if (infiniteIdx !== -1) {
-      steps[infiniteIdx].price = correctPrices[job];
-    } else {
-      steps.push({ limit: Infinity, price: correctPrices[job] });
-    }
+    for (let i = 0; i < steps.length; i++) { if (!isFinite(steps[i].limit)) { infiniteIdx = i; break; } }
+    if (infiniteIdx !== -1) steps[infiniteIdx].price = correctPrices[job];
+    else steps.push({ limit: Infinity, price: correctPrices[job] });
     let finite = steps.filter(s => isFinite(s.limit)).sort((a,b) => a.limit - b.limit);
     let infinite = steps.filter(s => !isFinite(s.limit));
     if (infinite.length > 1) infinite = [infinite[0]];
     stepConfig[job] = [...finite, ...infinite];
   }
 }
-
 function normalizeSteps(job) {
-  let steps = stepConfig[job];
-  if (!steps || !Array.isArray(steps) || steps.length === 0) {
-    steps = JSON.parse(JSON.stringify(DEFAULT_STEP[job]));
-  }
+  let steps = stepConfig[job] || [];
   let finite = steps.filter(s => typeof s.limit === 'number' && isFinite(s.limit) && s.limit > 0);
   let infinite = steps.filter(s => !isFinite(s.limit));
   finite.sort((a,b) => a.limit - b.limit);
   let unique = [];
-  for (let s of finite) {
-    if (unique.length === 0 || unique[unique.length-1].limit !== s.limit) {
-      unique.push({ limit: s.limit, price: s.price });
-    } else {
-      unique[unique.length-1].price = s.price;
-    }
-  }
-  let infinitePrice = (infinite.length > 0 && typeof infinite[0].price === 'number' && !isNaN(infinite[0].price))
-                      ? infinite[0].price
-                      : (unique.length > 0 ? unique[unique.length-1].price : 2.0);
-  let infiniteStep = { limit: Infinity, price: infinitePrice };
-  let normalized = [...unique, infiniteStep];
-  stepConfig[job] = normalized;
-  return normalized;
+  for (let s of finite) { if (unique.length === 0 || unique[unique.length-1].limit !== s.limit) unique.push({ limit: s.limit, price: s.price }); }
+  let infinitePrice = (infinite.length > 0 && typeof infinite[0].price === 'number') ? infinite[0].price : (unique.length ? unique[unique.length-1].price : 2.0);
+  stepConfig[job] = [...unique, { limit: Infinity, price: infinitePrice }];
+  return stepConfig[job];
 }
-
 function calcByStep(job, qty) {
   if (!job || qty <= 0) return 0;
   const steps = normalizeSteps(job);
-  let total = 0;
-  let prev = 0;
+  let total = 0, prev = 0;
   for (let i = 0; i < steps.length; i++) {
-    const curLimit = steps[i].limit;
-    const price = steps[i].price;
+    const curLimit = steps[i].limit, price = steps[i].price;
     const upper = isFinite(curLimit) ? curLimit : qty;
     if (upper <= prev) continue;
     const seg = Math.min(qty, upper) - prev;
@@ -345,45 +383,22 @@ function calcByStep(job, qty) {
   }
   return total;
 }
-
 function calc() {
   const job = document.querySelector('input[name="job"]:checked')?.value;
   if (!job) return 0;
-  let qty = parseFloat(document.getElementById("output").value);
-  if (isNaN(qty) || qty < 0) qty = 0;
-  let fac = parseFloat(document.getElementById("factor").value);
-  if (isNaN(fac) || fac < 0) fac = 1;
-  let ext = parseFloat(document.getElementById("extra").value);
-  if (isNaN(ext) || ext < 0) ext = 0;
-  let extraPrice = (typeof config.extraPrice === 'number' && !isNaN(config.extraPrice)) ? config.extraPrice : 18;
+  let qty = parseFloat(document.getElementById("output").value) || 0;
+  let fac = parseFloat(document.getElementById("factor").value) || 1;
+  let ext = parseFloat(document.getElementById("extra").value) || 0;
+  let extraPrice = (typeof config.extraPrice === 'number') ? config.extraPrice : 18;
   const baseSalary = calcByStep(job, qty);
-  const factorSalary = baseSalary * fac;
-  const extraSalary = ext * extraPrice;
-  const total = factorSalary + extraSalary;
-  const avgPrice = qty > 0 ? (total / qty) : 0;
+  const total = baseSalary * fac + ext * extraPrice;
+  const avgPrice = qty > 0 ? total / qty : 0;
   document.getElementById("avg").innerText = `平均单价：¥${avgPrice.toFixed(2)}`;
   document.getElementById("total").innerText = `总额：¥${total.toFixed(2)}`;
   return total;
 }
-
-function syncStepConfigAndRender() {
-  enforceCorrectStepPrices();
-  ['fine', 'center', 'rough'].forEach(job => normalizeSteps(job));
-  localStorage.setItem("stepConfig", JSON.stringify(stepConfig));
-  renderStepList('fine');
-  renderStepList('center');
-  renderStepList('rough');
-  calc();
-}
-
-function renderManualResult() { 
-  const money = Number(document.getElementById("mSalary").value) || 0; 
-  document.getElementById("mTotal").innerText = `金额：¥${money.toFixed(2)}`; 
-}
-
 function saveAuto() {
-  const total = calc(); 
-  if(total <= 0) return toast("金额为0，无法保存");
+  const total = calc(); if(total <= 0) return toast("金额为0，无法保存");
   const y=document.getElementById("year").value, m=document.getElementById("month").value, d=document.getElementById("day").value;
   const job=document.querySelector('input[name="job"]:checked').value;
   const jobName={fine:"精车",center:"加工中心",rough:"粗车"}[job];
@@ -391,62 +406,23 @@ function saveAuto() {
   const remark=document.getElementById("remark").value.trim();
   const qty=Number(document.getElementById("output").value)||0, factorVal=Number(document.getElementById("factor").value)||1;
   const extraVal=Number(document.getElementById("extra").value)||0;
-  records.push({
-    id: Date.now()+"-"+Math.random().toString(36).substr(2,8),
-    timestamp: Date.now(),
-    date: `${y}-${m}-${d}`,
-    type: jobName,
-    model: model,
-    output: qty,
-    factor: factorVal,
-    extra: extraVal,
-    salary: total,
-    remark: remark,
-    manual: false
-  });
+  records.push({ id: Date.now()+"-"+Math.random().toString(36).substr(2,8), timestamp: Date.now(), date: `${y}-${m}-${d}`, type: jobName, model: model, output: qty, factor: factorVal, extra: extraVal, salary: total, remark: remark, manual: false });
   persistRecords();
   toast("保存成功");
   renderRecords();
 }
-
 function saveManual() {
-  const money=Number(document.getElementById("mSalary").value)||0; 
-  if(money<=0) return toast("金额必须大于0");
+  const money=Number(document.getElementById("mSalary").value)||0; if(money<=0) return toast("金额必须大于0");
   const y=document.getElementById("mYear").value, m=document.getElementById("mMonth").value, d=document.getElementById("mDay").value;
   const model=document.getElementById("mModel").value.trim().toUpperCase(), remark=document.getElementById("mRemark").value.trim();
-  records.push({
-    id: Date.now()+"-"+Math.random().toString(36).substr(2,8),
-    timestamp: Date.now(),
-    date: `${y}-${m}-${d}`,
-    type: "手动",
-    model: model,
-    output: 0,
-    factor: null,
-    extra: 0,
-    salary: money,
-    remark: remark,
-    manual: true
-  });
+  records.push({ id: Date.now()+"-"+Math.random().toString(36).substr(2,8), timestamp: Date.now(), date: `${y}-${m}-${d}`, type: "手动", model: model, output: 0, factor: null, extra: 0, salary: money, remark: remark, manual: true });
   persistRecords();
   toast("保存成功");
   renderRecords();
 }
-
 function persistRecords() { localStorage.setItem("records", JSON.stringify(records)); }
-function getDays(y,m) { return new Date(y, m, 0).getDate(); }
-function fillDay(selId,y,m) { const sel=document.getElementById(selId); if(!sel) return; sel.innerHTML=""; for(let i=1;i<=getDays(y,m); i++) sel.innerHTML+=`<option value="${i.toString().padStart(2,'0')}">${i}日</option>`; }
-function refreshDay(dayId,yearId,monthId) { const y=+document.getElementById(yearId).value, m=+document.getElementById(monthId).value; fillDay(dayId,y,m); calc(); }
-function fillYearSelect(selId) { const el=document.getElementById(selId); if(!el) return; let html=""; for(let y=2025;y<=2060;y++) html+=`<option value="${y}">${y}年</option>`; el.innerHTML=html; }
-function initDate() {
-  const now=new Date(), curYear=now.getFullYear(), curMonth=(now.getMonth()+1).toString().padStart(2,"0"), curDay=now.getDate().toString().padStart(2,"0");
-  document.getElementById("year").value=curYear; document.getElementById("month").value=curMonth; fillDay("day",curYear,curMonth); document.getElementById("day").value=curDay;
-  document.getElementById("mYear").value=curYear; document.getElementById("mMonth").value=curMonth; fillDay("mDay",curYear,curMonth); document.getElementById("mDay").value=curDay;
-  document.getElementById("recordMonth").value=`${curYear}-${curMonth}`;
-}
-
-function renderRecords() { 
-  const month = document.getElementById("recordMonth").value;
-  if (!month) return;
+function renderRecords() {
+  const month = document.getElementById("recordMonth").value; if (!month) return;
   const monthRecords = records.filter(i => i.date.startsWith(month));
   const groups = new Map();
   monthRecords.forEach(rec => { if (!groups.has(rec.date)) groups.set(rec.date, []); groups.get(rec.date).push(rec); });
@@ -474,382 +450,87 @@ function renderRecords() {
       const rec = dayRecords[i];
       globalIdx++;
       const tr = document.createElement("tr");
+      if (i === 0) tr.classList.add("date-group-start");
       tr.appendChild(Object.assign(document.createElement("td"), {innerText: globalIdx}));
-      const tdDate = document.createElement("td");
-      const dateParts = rec.date.split("-");
-      tdDate.innerHTML = `<span class="cell-line">${dateParts[0]}</span><span class="cell-line">${dateParts[1]}-${dateParts[2]}</span>`;
-      tr.appendChild(tdDate);
+      const tdDate = document.createElement("td"); const dateParts = rec.date.split("-");
+      tdDate.innerHTML = `<span class="cell-line">${dateParts[0]}</span><span class="cell-line">${dateParts[1]}-${dateParts[2]}</span>`; tr.appendChild(tdDate);
       tr.appendChild(Object.assign(document.createElement("td"), {innerText: rec.type}));
       tr.appendChild(Object.assign(document.createElement("td"), {innerText: rec.model || '-'}));
       tr.appendChild(Object.assign(document.createElement("td"), {innerText: rec.output}));
-      const tdFactor = document.createElement("td");
-      tdFactor.innerText = (rec.factor !== undefined && rec.factor !== null && rec.factor !== 0 && !rec.manual) ? rec.factor.toFixed(2) : '-';
-      tr.appendChild(tdFactor);
-      if (i === 0) {
-        const tdExtra = document.createElement("td");
-        tdExtra.innerText = dayTotalExtra.toFixed(1) + ' h';
-        tdExtra.rowSpan = rowCount;
-        tr.appendChild(tdExtra);
-      }
+      const tdFactor = document.createElement("td"); tdFactor.innerText = (rec.factor !== undefined && rec.factor !== null && rec.factor !== 0 && !rec.manual) ? rec.factor.toFixed(2) : '-'; tr.appendChild(tdFactor);
+      if (i === 0) { const tdExtra = document.createElement("td"); tdExtra.innerText = dayTotalExtra.toFixed(1) + ' h'; tdExtra.rowSpan = rowCount; tr.appendChild(tdExtra); }
       tr.appendChild(Object.assign(document.createElement("td"), {innerText: `¥${rec.salary.toFixed(2)}`}));
-      if (i === 0) {
-        const tdSub = document.createElement("td");
-        tdSub.innerText = `¥${dayTotal.toFixed(2)}`;
-        tdSub.rowSpan = rowCount;
-        tr.appendChild(tdSub);
-      }
+      if (i === 0) { const tdSub = document.createElement("td"); tdSub.innerText = `¥${dayTotal.toFixed(2)}`; tdSub.rowSpan = rowCount; tr.appendChild(tdSub); }
       tr.appendChild(Object.assign(document.createElement("td"), {innerText: rec.remark || '-'}));
       const tdDel = document.createElement("td");
-      const delBtn = document.createElement("button"); delBtn.innerText = "删"; delBtn.className = "del-btn";
-      delBtn.onclick = () => { if(confirm("确定删除这条记录？")){ records = records.filter(r => r.id !== rec.id); persistRecords(); renderRecords(); toast("已删除"); } };
+      const delBtn = document.createElement("button"); delBtn.innerText = "删除"; delBtn.className = "del-btn";
+      delBtn.onclick = () => { if(confirm("移至回收站？可在回收站恢复")) moveToTrash(rec.id); };
       tdDel.appendChild(delBtn); tr.appendChild(tdDel);
       tbody.appendChild(tr);
     }
   }
 }
-function prevMonth() { changeMonth(-1); }
-function nextMonth() { changeMonth(1); }
-function changeMonth(delta) {
-  const v = document.getElementById("recordMonth").value; if(!v) return;
-  let [y,m]=v.split("-").map(Number); const dt=new Date(y,m-1+delta,1);
-  const ny=dt.getFullYear(), nm=(dt.getMonth()+1).toString().padStart(2,"0");
-  document.getElementById("recordMonth").value=`${ny}-${nm}`; renderRecords();
+function getDays(y,m){ return new Date(y, m, 0).getDate(); }
+function fillDay(selId,y,m){ const sel=document.getElementById(selId); if(!sel) return; sel.innerHTML=""; for(let i=1;i<=getDays(y,m); i++) sel.innerHTML+=`<option value="${i.toString().padStart(2,'0')}">${i}日</option>`; }
+function refreshDay(dayId,yearId,monthId){ const y=+document.getElementById(yearId).value, m=+document.getElementById(monthId).value; fillDay(dayId,y,m); calc(); }
+function fillYearSelect(selId){ const el=document.getElementById(selId); if(!el) return; let html=""; for(let y=2025;y<=2060;y++) html+=`<option value="${y}">${y}年</option>`; el.innerHTML=html; }
+function initDate(){ const now=new Date(), curYear=now.getFullYear(), curMonth=(now.getMonth()+1).toString().padStart(2,"0"), curDay=now.getDate().toString().padStart(2,"0");
+  document.getElementById("year").value=curYear; document.getElementById("month").value=curMonth; fillDay("day",curYear,curMonth); document.getElementById("day").value=curDay;
+  document.getElementById("mYear").value=curYear; document.getElementById("mMonth").value=curMonth; fillDay("mDay",curYear,curMonth); document.getElementById("mDay").value=curDay;
+  document.getElementById("recordMonth").value=`${curYear}-${curMonth}`;
 }
-function clearAuto() { 
-  document.getElementById("output").value="0"; 
-  document.getElementById("factor").value="1.0"; 
-  document.getElementById("extra").value="0"; 
-  document.getElementById("remark").value=""; 
-  document.getElementById("model").value=""; 
-  initDefaultJob(); 
-  calc(); 
-}
-function clearManual() { 
-  document.getElementById("mModel").value=""; 
-  document.getElementById("mSalary").value=""; 
-  document.getElementById("mRemark").value=""; 
-  renderManualResult(); 
-}
-function renderFactor() { const box=document.getElementById("dbList"); box.innerHTML=""; Object.keys(factorMap).sort().forEach(k=>{ const div=document.createElement("div"); div.className="db-item"; div.innerHTML=`<input value="${k.replace(/"/g, '&quot;')}" readonly><input value="${factorMap[k]}" readonly><button onclick="delFactor('${k.replace(/'/g, "\\'")}')">×</button>`; box.appendChild(div); }); }
-function addFactor() { let m=document.getElementById("newModel").value.trim().toUpperCase(); const f=Number(document.getElementById("newFactor").value); if(!m||isNaN(f)||f<=0) return toast("填写完整且系数大于0"); factorMap[m]=f; localStorage.setItem("factorMap",JSON.stringify(factorMap)); renderFactor(); document.getElementById("newModel").value=""; document.getElementById("newFactor").value=""; toast("已添加"); }
-function delFactor(m){ if(!confirm("确定删除该系数？")) return; delete factorMap[m]; localStorage.setItem("factorMap",JSON.stringify(factorMap)); renderFactor(); toast("已删除"); }
-function openDb(){ document.getElementById("dbModal").style.display="flex"; renderFactor(); }
-function closeDb(){ document.getElementById("dbModal").style.display="none"; }
-function modelToUpper(e){ 
-  e.target.value = e.target.value.toUpperCase(); 
-  const v = e.target.value.trim().toUpperCase();
-  if(factorMap[v]) document.getElementById("factor").value = factorMap[v]; 
-  calc(); 
-}
+function prevMonth() { changeMonth(-1); } function nextMonth() { changeMonth(1); }
+function changeMonth(delta){ const v=document.getElementById("recordMonth").value; if(!v) return; let [y,m]=v.split("-").map(Number); const dt=new Date(y,m-1+delta,1); const ny=dt.getFullYear(), nm=(dt.getMonth()+1).toString().padStart(2,"0"); document.getElementById("recordMonth").value=`${ny}-${nm}`; renderRecords(); }
+function clearAuto(){ document.getElementById("output").value="0"; document.getElementById("factor").value="1.0"; document.getElementById("extra").value="0"; document.getElementById("remark").value=""; document.getElementById("model").value=""; initDefaultJob(); calc(); }
+function clearManual(){ document.getElementById("mModel").value=""; document.getElementById("mSalary").value=""; document.getElementById("mRemark").value=""; renderManualResult(); }
+function renderManualResult(){ const money=Number(document.getElementById("mSalary").value)||0; document.getElementById("mTotal").innerText=`金额：¥${money.toFixed(2)}`; }
+function modelToUpper(e){ e.target.value = e.target.value.toUpperCase(); const v=e.target.value.trim().toUpperCase(); if(factorMap[v]) document.getElementById("factor").value = factorMap[v]; calc(); }
 document.getElementById("model").addEventListener("input",modelToUpper);
 document.getElementById("mModel").addEventListener("input",(e)=>e.target.value=e.target.value.toUpperCase());
 document.getElementById("newModel").addEventListener("input",(e)=>e.target.value=e.target.value.toUpperCase());
-document.getElementById("output").addEventListener("input",calc);
-document.getElementById("factor").addEventListener("input",calc);
-document.getElementById("extra").addEventListener("input",calc);
+document.getElementById("output").addEventListener("input",calc); document.getElementById("factor").addEventListener("input",calc); document.getElementById("extra").addEventListener("input",calc);
 document.querySelectorAll('input[name="job"]').forEach(i=>i.addEventListener("change",calc));
 function saveConfig(){ config.extraPrice = Number(document.getElementById("extraPrice").value) || 18; localStorage.setItem("salaryConfig",JSON.stringify(config)); toast("配置已保存"); calc(); }
 function loadConfig(){ document.getElementById("extraPrice").value = config.extraPrice || 18; document.querySelector(`input[name="defaultJob"][value="${config.defaultJob||'fine'}"]`).checked=true; }
 function initDefaultJob(){ const def=config.defaultJob||"fine"; document.querySelector(`input[name="job"][value="${def}"]`).checked=true; calc(); }
 function saveDefaultJob(){ const selectedJob=document.querySelector('input[name="defaultJob"]:checked').value; config.defaultJob=selectedJob; localStorage.setItem("salaryConfig",JSON.stringify(config)); initDefaultJob(); toast("默认工种保存成功"); }
-function renderStepList(job){ 
-  normalizeSteps(job);
-  const container=document.getElementById(`stepList_${job}`);
-  if(!container) return;
+function renderStepList(job){
+  const container=document.getElementById(`stepList_${job}`); if(!container) return;
+  normalizeSteps(job); const steps=stepConfig[job];
   container.innerHTML="";
-  const steps=stepConfig[job];
-  steps.forEach((step,idx)=>{
-    const isLast=(idx===steps.length-1);
-    const div=document.createElement("div"); div.className="step-item";
+  steps.forEach((step,idx)=>{ const isLast=(idx===steps.length-1); const div=document.createElement("div"); div.className="step-item";
     div.appendChild(Object.assign(document.createElement("span"), {innerText:`第${idx+1}档`}));
-    if(isLast){
-      div.appendChild(Object.assign(document.createElement("span"), {className:"limit-text", innerText:"无上限"}));
-      div.appendChild(Object.assign(document.createElement("span"), {innerText:"件"}));
-    } else {
-      const limitInput=document.createElement("input");
-      limitInput.type="number"; limitInput.value=step.limit; limitInput.step="1"; limitInput.min="1";
-      limitInput.addEventListener("change",()=>{ updateStepFromDom(job); });
-      div.appendChild(limitInput);
-      div.appendChild(Object.assign(document.createElement("span"), {innerText:"件以内"}));
-    }
-    const priceInput=document.createElement("input");
-    priceInput.type="number"; priceInput.step="0.01"; priceInput.value=step.price;
-    priceInput.addEventListener("change",()=>{ updateStepFromDom(job); });
-    div.appendChild(priceInput);
-    div.appendChild(Object.assign(document.createElement("span"), {innerText:"元/件"}));
-    const delBtn=document.createElement("button"); delBtn.innerText="×"; delBtn.className="step-del";
-    if(isLast){ delBtn.disabled=true; delBtn.style.opacity="0.5"; }
-    else{ delBtn.addEventListener("click",()=>delStep(job,idx)); }
-    div.appendChild(delBtn);
-    container.appendChild(div);
+    if(isLast){ div.appendChild(Object.assign(document.createElement("span"), {className:"limit-text", innerText:"无上限"})); div.appendChild(Object.assign(document.createElement("span"), {innerText:"件"}));
+    } else { const limitInput=document.createElement("input"); limitInput.type="number"; limitInput.value=step.limit; limitInput.step="1"; limitInput.min="1"; limitInput.addEventListener("change",()=>updateStepFromDom(job)); div.appendChild(limitInput); div.appendChild(Object.assign(document.createElement("span"), {innerText:"件以内"})); }
+    const priceInput=document.createElement("input"); priceInput.type="number"; priceInput.step="0.01"; priceInput.value=step.price; priceInput.addEventListener("change",()=>updateStepFromDom(job)); div.appendChild(priceInput); div.appendChild(Object.assign(document.createElement("span"), {innerText:"元/件"}));
+    const delBtn=document.createElement("button"); delBtn.innerText="×"; delBtn.className="step-del"; if(isLast){ delBtn.disabled=true; delBtn.style.opacity="0.5"; } else{ delBtn.addEventListener("click",()=>delStep(job,idx)); } div.appendChild(delBtn); container.appendChild(div);
   });
 }
-function updateStepFromDom(job){
-  const container=document.getElementById(`stepList_${job}`);
-  const items=container.querySelectorAll(".step-item");
-  const newSteps=[];
-  for(let i=0;i<items.length;i++){
-    const isLast=(i===items.length-1);
-    let limit=Infinity;
-    if(!isLast){
-      const limitInput=items[i].querySelector("input[type='number']:first-of-type");
-      if(limitInput) limit=parseFloat(limitInput.value)||0;
-    }
-    const priceInputs=items[i].querySelectorAll("input[type='number']");
-    const price=parseFloat(priceInputs[priceInputs.length-1].value)||0;
-    newSteps.push({limit,price});
-  }
-  stepConfig[job]=newSteps;
-  enforceCorrectStepPrices();
-  normalizeSteps(job);
-  renderStepList(job);
-  calc();
-}
-function addStep(job){
-  const steps=stepConfig[job];
-  if(steps.length<=1) return toast("至少保留2档后才能添加");
-  const lastNormal=steps[steps.length-2];
-  const newLimit=lastNormal.limit+10;
-  const newPrice=lastNormal.price+0.5;
-  steps.splice(steps.length-1,0,{limit:newLimit,price:newPrice});
-  stepConfig[job]=steps;
-  enforceCorrectStepPrices();
-  normalizeSteps(job);
-  renderStepList(job);
-  calc();
-  toast("已添加阶梯");
-}
-function delStep(job,idx){
-  const steps=stepConfig[job];
-  if(steps.length<=2) return toast("至少保留2档");
-  if(idx===steps.length-1) return;
-  if(!confirm(`确定删除第${idx+1}档阶梯吗？`)) return;
-  steps.splice(idx,1);
-  stepConfig[job]=steps;
-  enforceCorrectStepPrices();
-  normalizeSteps(job);
-  renderStepList(job);
-  calc();
-  toast("已删除");
-}
-function saveStepConfig(){ 
-  syncStepConfigAndRender();
-  localStorage.setItem("stepConfig", JSON.stringify(stepConfig));
-  toast("阶梯已保存");
-  calc();
-}
-function resetJobStep(job){
-  if(!confirm(`恢复${job==='fine'?'精车':job==='center'?'加工中心':'粗车'}默认阶梯？`)) return;
-  stepConfig[job] = JSON.parse(JSON.stringify(DEFAULT_STEP[job]));
-  enforceCorrectStepPrices();
-  normalizeSteps(job);
-  renderStepList(job);
-  localStorage.setItem("stepConfig", JSON.stringify(stepConfig));
-  calc();
-  toast("已恢复默认并自动保存");
-}
-function resetAllStep(){
-  if(!confirm("恢复全部工种默认阶梯？")) return;
-  stepConfig = JSON.parse(JSON.stringify(DEFAULT_STEP));
-  syncStepConfigAndRender();
-  localStorage.setItem("stepConfig", JSON.stringify(stepConfig));
-  calc();
-  toast("全部已恢复默认并自动保存");
-}
-function showPage(pageId){ document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active")); document.querySelectorAll(".page").forEach(p=>p.classList.remove("active")); document.querySelector(`.tab-btn[onclick="showPage('${pageId}')"]`).classList.add("active"); document.getElementById(pageId).classList.add("active"); document.querySelector(".top-tab").style.display=pageId==="calc"?"flex":"none"; if(pageId==="records") renderRecords(); if(pageId==="settings"){ refreshSyncUI(); renderStepList("fine"); renderStepList("center"); renderStepList("rough"); loadConfig(); } }
+function updateStepFromDom(job){ const container=document.getElementById(`stepList_${job}`); const items=container.querySelectorAll(".step-item"); const newSteps=[]; for(let i=0;i<items.length;i++){ const isLast=(i===items.length-1); let limit=Infinity; if(!isLast){ const limitInput=items[i].querySelector("input[type='number']:first-of-type"); if(limitInput) limit=parseFloat(limitInput.value)||0; } const priceInputs=items[i].querySelectorAll("input[type='number']"); const price=parseFloat(priceInputs[priceInputs.length-1].value)||0; newSteps.push({limit,price}); } stepConfig[job]=newSteps; enforceCorrectStepPrices(); normalizeSteps(job); renderStepList(job); calc(); }
+function addStep(job){ const steps=stepConfig[job]; if(steps.length<=1) return toast("至少保留2档后才能添加"); const lastNormal=steps[steps.length-2]; const newLimit=lastNormal.limit+10; const newPrice=lastNormal.price+0.5; steps.splice(steps.length-1,0,{limit:newLimit,price:newPrice}); stepConfig[job]=steps; enforceCorrectStepPrices(); normalizeSteps(job); renderStepList(job); calc(); toast("已添加阶梯"); }
+function delStep(job,idx){ const steps=stepConfig[job]; if(steps.length<=2) return toast("至少保留2档"); if(idx===steps.length-1) return; if(!confirm(`确定删除第${idx+1}档阶梯吗？`)) return; steps.splice(idx,1); stepConfig[job]=steps; enforceCorrectStepPrices(); normalizeSteps(job); renderStepList(job); calc(); toast("已删除"); }
+function saveStepConfig(){ syncStepConfigAndRender(); localStorage.setItem("stepConfig", JSON.stringify(stepConfig)); toast("阶梯已保存"); calc(); }
+function resetJobStep(job){ if(!confirm(`恢复默认阶梯？`)) return; stepConfig[job] = JSON.parse(JSON.stringify(DEFAULT_STEP[job])); enforceCorrectStepPrices(); normalizeSteps(job); renderStepList(job); localStorage.setItem("stepConfig", JSON.stringify(stepConfig)); calc(); toast("已恢复默认"); }
+function resetAllStep(){ if(!confirm("恢复全部工种默认阶梯？")) return; stepConfig = JSON.parse(JSON.stringify(DEFAULT_STEP)); syncStepConfigAndRender(); localStorage.setItem("stepConfig", JSON.stringify(stepConfig)); calc(); toast("全部已恢复默认"); }
+function syncStepConfigAndRender(){ enforceCorrectStepPrices(); ['fine','center','rough'].forEach(job=>normalizeSteps(job)); localStorage.setItem("stepConfig",JSON.stringify(stepConfig)); renderStepList('fine'); renderStepList('center'); renderStepList('rough'); calc(); }
+function showPage(pageId){ document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active")); document.querySelectorAll(".page").forEach(p=>p.classList.remove("active")); document.querySelector(`.tab-btn[onclick="showPage('${pageId}')"]`).classList.add("active"); document.getElementById(pageId).classList.add("active"); document.querySelector(".top-tab").style.display=pageId==="calc"?"flex":"none"; if(pageId==="records") switchRecordView('records'); if(pageId==="settings"){ refreshSyncUI(); renderStepList("fine"); renderStepList("center"); renderStepList("rough"); loadConfig(); } }
 function showSub(subId){ document.querySelectorAll(".top-tab-btn").forEach(b=>b.classList.remove("active")); document.querySelectorAll(".sub-page").forEach(p=>p.classList.remove("active")); document.querySelector(`.top-tab-btn[onclick="showSub('${subId}')"]`).classList.add("active"); document.getElementById(subId).classList.add("active"); }
 function refreshSyncUI(){ const st=document.getElementById("syncStatus"); if(syncAccount) st.innerText=`已绑定：${syncAccount}`; else st.innerText="未绑定同步账号"; document.getElementById("syncAccount").value=syncAccount; }
-async function bindAccount(){ const val=document.getElementById("syncAccount").value.trim(); if(!val) return toast("请输入账号"); if(!/^[a-zA-Z0-9_]+$/.test(val)) return toast("只能字母数字下划线"); setButtonsLoading(true); try{ syncAccount=val; localStorage.setItem("syncAccount",syncAccount); refreshSyncUI(); toast("绑定成功，云端已就绪"); }catch(e){ toast("绑定失败"); }finally{ setButtonsLoading(false); } }
-
-async function syncDownload(){ 
-  if(!syncAccount) return toast("请先绑定账号"); 
-  if(!confirm("合并云端数据到本地？")) return; 
-  setButtonsLoading(true); 
-  toast("正在下载..."); 
-  try{ 
-    await initCloud(); 
-    const cloudData = await loadFromSupabase(); 
-    if(!cloudData){ toast("云端无数据"); return; } 
-    
-    const cloudRecords = (cloudData.records || []).map(r => {
-      if (r.extra === undefined) r.extra = 0;
-      if (r.factor === undefined) r.factor = 1;
-      if (r.output === undefined) r.output = 0;
-      if (r.salary === undefined) r.salary = 0;
-      if (!r.id) r.id = Date.now() + "-" + Math.random().toString(36).substr(2, 8);
-      if (!r.timestamp) r.timestamp = Date.now();
-      return r;
-    });
-    
-    const localIds = new Set(records.map(x => x.id));
-    const localBizKeys = new Set(records.map(r => 
-      `${r.date}|${r.type}|${r.model || ''}|${r.output}|${r.factor}|${r.extra}|${r.salary.toFixed(6)}`
-    ));
-    
-    const newRecords = cloudRecords.filter(r => {
-      const bizKey = `${r.date}|${r.type}|${r.model || ''}|${r.output}|${r.factor}|${r.extra}|${r.salary.toFixed(6)}`;
-      return !localIds.has(r.id) && !localBizKeys.has(bizKey);
-    });
-    
-    const addedCount = newRecords.length;
-    
-    if (addedCount === 0) {
-      toast("云端无新数据，合并完成，新增0条记录");
-      setButtonsLoading(false);
-      return;
-    }
-    
-    records = [...records, ...newRecords];
-    factorMap = { ...factorMap, ...(cloudData.factorMap || {}) };
-    factorMap = Object.keys(factorMap).reduce((obj, key) => {
-      obj[key.toUpperCase()] = factorMap[key];
-      return obj;
-    }, {});
-    config = { ...(cloudData.config || { extraPrice: 18, defaultJob: "fine" }), ...config };
-    config.extraPrice = Number(config.extraPrice) || 18;
-    stepConfig = { ...(cloudData.stepConfig || DEFAULT_STEP), ...stepConfig };
-    enforceCorrectStepPrices();
-    ['fine', 'center', 'rough'].forEach(job => normalizeSteps(job));
-    
-    localStorage.setItem("records", JSON.stringify(records));
-    localStorage.setItem("factorMap", JSON.stringify(factorMap));
-    localStorage.setItem("salaryConfig", JSON.stringify(config));
-    localStorage.setItem("stepConfig", JSON.stringify(stepConfig));
-    
-    loadConfig();
-    initDefaultJob();
-    renderRecords();
-    renderStepList('fine');
-    renderStepList('center');
-    renderStepList('rough');
-    calc();
-    
-    toast(`合并完成，新增${addedCount}条记录`); 
-  } catch(e){ 
-    console.error(e); 
-    toast("下载失败: " + (e.message || "网络错误")); 
-  } finally{ 
-    setButtonsLoading(false); 
-  } 
-}
-
-async function syncUpload(){ 
-  if(!syncAccount) return toast("请先绑定账号"); 
-  setButtonsLoading(true); 
-  toast("正在上传..."); 
-  try{ 
-    await initCloud(); 
-    await saveToSupabase({ records, factorMap, config, stepConfig }); 
-    toast("上传成功"); 
-  } catch(e){ 
-    console.error(e); 
-    toast("上传失败: " + (e.message || "网络错误")); 
-  } finally{ 
-    setButtonsLoading(false); 
-  } 
-}
-
-async function supabaseRequest(endpoint, options = {}) { 
-  const url = `${SUPABASE_URL}/rest/v1${endpoint}`; 
-  const headers = { 
-    "apikey": SUPABASE_ANON_KEY, 
-    "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, 
-    "Content-Type": "application/json", 
-    ...options.headers 
-  }; 
-  const response = await fetch(url, { ...options, headers }); 
-  if (!response.ok) { 
-    const error = await response.text(); 
-    throw new Error(`Supabase请求失败: ${response.status} ${error}`); 
-  } 
-  return response; 
-}
-
-async function getUserData() { 
-  if (!syncAccount) return null; 
-  const response = await supabaseRequest(`/salary_data?syncaccount=eq.${encodeURIComponent(syncAccount)}&select=*`); 
-  const data = await response.json(); 
-  if (data && data.length > 0) return data[0]; 
-  return null; 
-}
-
-async function saveToSupabase(data) { 
-  if (!syncAccount) throw new Error("未绑定账号"); 
-  const existing = await getUserData(); 
-  const payload = { 
-    syncaccount: syncAccount, 
-    records: data.records, 
-    factormap: data.factorMap, 
-    config: data.config, 
-    stepconfig: data.stepConfig, 
-    lastsync: Date.now() 
-  }; 
-  if (existing) { 
-    await supabaseRequest(`/salary_data?id=eq.${existing.id}`, { method: "PATCH", body: JSON.stringify(payload) }); 
-    return existing.id; 
-  } else { 
-    const response = await supabaseRequest("/salary_data", { method: "POST", body: JSON.stringify(payload) }); 
-    const result = await response.json(); 
-    return result.id; 
-  } 
-}
-
-async function loadFromSupabase() { 
-  if (!syncAccount) throw new Error("未绑定账号"); 
-  const userData = await getUserData(); 
-  if (userData) { 
-    return { 
-      records: userData.records || [], 
-      factorMap: userData.factormap || {}, 
-      config: userData.config || { extraPrice: 18, defaultJob: "fine" }, 
-      stepConfig: userData.stepconfig || DEFAULT_STEP 
-    }; 
-  } 
-  return null; 
-}
-
-async function initCloud() { if(cloudInitialized) return true; cloudInitialized = true; return true; }
-
-function loadLocalData() {
-  const rawRecords = JSON.parse(localStorage.getItem("records") || "[]");
-  records = rawRecords.map(rec => { 
-    if (!rec.timestamp || typeof rec.timestamp !== 'number') rec.timestamp = Date.now(); 
-    if(rec.factor === undefined) rec.factor = 1; 
-    if(rec.extra === undefined) rec.extra = 0; 
-    return rec; 
-  });
-  const rawFactorMap = JSON.parse(localStorage.getItem("factorMap") || "{}");
-  factorMap = Object.keys(rawFactorMap).reduce((obj, key) => { obj[key.toUpperCase()] = rawFactorMap[key]; return obj; }, {});
-  const savedConfig = JSON.parse(localStorage.getItem("salaryConfig") || '{"extraPrice":18, "defaultJob":"fine"}');
-  config = { extraPrice: Number(savedConfig.extraPrice) || 18, defaultJob: savedConfig.defaultJob || "fine" };
-  const savedStep = localStorage.getItem("stepConfig");
-  if(savedStep) {
-    stepConfig = JSON.parse(savedStep);
-  } else {
-    stepConfig = JSON.parse(JSON.stringify(DEFAULT_STEP));
-  }
-  enforceCorrectStepPrices();
-  ['fine', 'center', 'rough'].forEach(job => normalizeSteps(job));
-  localStorage.setItem("stepConfig", JSON.stringify(stepConfig));
-  persistRecords();
-  initDefaultJob();
-}
-
-window.onload=function(){
-  loadLocalData(); 
-  let mon=""; for(let i=1;i<=12;i++) mon+=`<option value="${i.toString().padStart(2,0)}">${i}月</option>`;
-  document.getElementById("month").innerHTML=mon; document.getElementById("mMonth").innerHTML=mon;
-  fillYearSelect("year"); fillYearSelect("mYear"); initDate();
-  document.getElementById("year").addEventListener("change",()=>refreshDay("day","year","month"));
-  document.getElementById("month").addEventListener("change",()=>refreshDay("day","year","month"));
-  document.getElementById("mYear").addEventListener("change",()=>refreshDay("mDay","mYear","mMonth"));
-  document.getElementById("mMonth").addEventListener("change",()=>refreshDay("mDay","mYear","mMonth"));
-  loadConfig(); initDefaultJob(); calc(); renderManualResult(); renderRecords(); refreshSyncUI(); initCloud().catch(e=>console.warn(e));
-  document.getElementById("output").value = "0";
-  document.getElementById("factor").value = "1.0";
-  document.getElementById("extra").value = "0";
-  calc();
-};
+async function bindAccount(){ const val=document.getElementById("syncAccount").value.trim(); if(!val) return toast("请输入账号"); if(!/^[a-zA-Z0-9_]+$/.test(val)) return toast("只能字母数字下划线"); setButtonsLoading(true); showLoading(); try{ syncAccount=val; localStorage.setItem("syncAccount",syncAccount); refreshSyncUI(); toast("绑定成功"); }catch(e){ toast("绑定失败"); }finally{ hideLoading(); setButtonsLoading(false); } }
+async function syncDownload(){ if(!syncAccount) return toast("请先绑定账号"); if(!confirm("合并云端数据到本地？")) return; setButtonsLoading(true); showLoading(); try{ await initCloud(); const cloudData = await loadFromSupabase(); if(!cloudData){ toast("云端无数据"); return; } const cloudRecords = (cloudData.records || []).map(r=>{ if(r.extra===undefined) r.extra=0; if(r.factor===undefined) r.factor=1; if(r.output===undefined) r.output=0; if(r.salary===undefined) r.salary=0; if(!r.id) r.id=Date.now()+"-"+Math.random().toString(36).substr(2,8); if(!r.timestamp) r.timestamp=Date.now(); return r; }); const localKeySet=new Set(records.map(r=>`${r.date}|${r.type}|${r.model||''}|${r.output}|${r.factor}|${r.extra}|${r.salary.toFixed(6)}`)); const newRecords=cloudRecords.filter(r=>{ const contentKey=`${r.date}|${r.type}|${r.model||''}|${r.output}|${r.factor}|${r.extra}|${r.salary.toFixed(6)}`; return !localKeySet.has(contentKey); }); if(newRecords.length===0){ toast("云端无新数据"); hideLoading(); setButtonsLoading(false); return; } records=[...records,...newRecords]; factorMap={...factorMap,...(cloudData.factorMap||{})}; factorMap=Object.keys(factorMap).reduce((obj,key)=>{ obj[key.toUpperCase()]=factorMap[key]; return obj; },{}); config={...(cloudData.config||{extraPrice:18,defaultJob:"fine"}),...config}; config.extraPrice=Number(config.extraPrice)||18; stepConfig={...(cloudData.stepConfig||DEFAULT_STEP),...stepConfig}; enforceCorrectStepPrices(); ['fine','center','rough'].forEach(job=>normalizeSteps(job)); persistRecords(); localStorage.setItem("factorMap",JSON.stringify(factorMap)); localStorage.setItem("salaryConfig",JSON.stringify(config)); localStorage.setItem("stepConfig",JSON.stringify(stepConfig)); loadConfig(); initDefaultJob(); renderRecords(); renderStepList('fine'); renderStepList('center'); renderStepList('rough'); calc(); toast(`合并完成，新增${newRecords.length}条记录`); }catch(e){ console.error(e); toast("下载失败"); }finally{ hideLoading(); setButtonsLoading(false); } }
+async function syncUpload(){ if(!syncAccount) return toast("请先绑定账号"); setButtonsLoading(true); showLoading(); try{ await initCloud(); await saveToSupabase({ records, factorMap, config, stepConfig }); toast("上传成功"); }catch(e){ toast("上传失败"); }finally{ hideLoading(); setButtonsLoading(false); } }
+async function supabaseRequest(endpoint,options={}){ const url=`${SUPABASE_URL}/rest/v1${endpoint}`; const headers={"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"Content-Type":"application/json",...options.headers}; const response=await fetch(url,{...options,headers}); if(!response.ok) throw new Error(`请求失败`); return response; }
+async function getUserData(){ if(!syncAccount) return null; const response=await supabaseRequest(`/salary_data?syncaccount=eq.${encodeURIComponent(syncAccount)}&select=*`); const data=await response.json(); return data&&data.length>0?data[0]:null; }
+async function saveToSupabase(data){ if(!syncAccount) throw new Error("未绑定账号"); const existing=await getUserData(); const payload={syncaccount:syncAccount,records:data.records,factormap:data.factorMap,config:data.config,stepconfig:data.stepConfig,lastsync:Date.now()}; if(existing){ await supabaseRequest(`/salary_data?id=eq.${existing.id}`,{method:"PATCH",body:JSON.stringify(payload)}); } else { await supabaseRequest("/salary_data",{method:"POST",body:JSON.stringify(payload)}); } }
+async function loadFromSupabase(){ if(!syncAccount) throw new Error("未绑定账号"); const userData=await getUserData(); if(userData) return { records:userData.records||[], factorMap:userData.factormap||{}, config:userData.config||{extraPrice:18,defaultJob:"fine"}, stepConfig:userData.stepconfig||DEFAULT_STEP }; return null; }
+async function initCloud(){ if(cloudInitialized) return true; cloudInitialized=true; return true; }
+function loadLocalData(){ const rawRecords=JSON.parse(localStorage.getItem("records")||"[]"); records=rawRecords.map(rec=>{ if(!rec.timestamp) rec.timestamp=Date.now(); if(rec.factor===undefined) rec.factor=1; if(rec.extra===undefined) rec.extra=0; return rec; }); loadTrash(); const rawFactorMap=JSON.parse(localStorage.getItem("factorMap")||"{}"); factorMap=Object.keys(rawFactorMap).reduce((obj,key)=>{ obj[key.toUpperCase()]=rawFactorMap[key]; return obj; },{}); const savedConfig=JSON.parse(localStorage.getItem("salaryConfig")||'{"extraPrice":18,"defaultJob":"fine"}'); config={extraPrice:Number(savedConfig.extraPrice)||18,defaultJob:savedConfig.defaultJob||"fine"}; const savedStep=localStorage.getItem("stepConfig"); if(savedStep) stepConfig=JSON.parse(savedStep); else stepConfig=JSON.parse(JSON.stringify(DEFAULT_STEP)); enforceCorrectStepPrices(); ['fine','center','rough'].forEach(job=>normalizeSteps(job)); localStorage.setItem("stepConfig",JSON.stringify(stepConfig)); persistRecords(); initDefaultJob(); }
+function openDb(){ document.getElementById("dbModal").style.display="flex"; renderFactor(); }
+function closeDb(){ document.getElementById("dbModal").style.display="none"; }
+function renderFactor(){ const box=document.getElementById("dbList"); box.innerHTML=""; Object.keys(factorMap).sort().forEach(k=>{ const div=document.createElement("div"); div.className="db-item"; div.innerHTML=`<input value="${k.replace(/"/g, '&quot;')}" readonly><input value="${factorMap[k]}" readonly><button onclick="delFactor('${k.replace(/'/g, "\\'")}')">×</button>`; box.appendChild(div); }); }
+function addFactor(){ let m=document.getElementById("newModel").value.trim().toUpperCase(); const f=Number(document.getElementById("newFactor").value); if(!m||isNaN(f)||f<=0) return toast("填写完整且系数大于0"); factorMap[m]=f; localStorage.setItem("factorMap",JSON.stringify(factorMap)); renderFactor(); document.getElementById("newModel").value=""; document.getElementById("newFactor").value=""; toast("已添加"); }
+function delFactor(m){ if(!confirm("确定删除该系数？")) return; delete factorMap[m]; localStorage.setItem("factorMap",JSON.stringify(factorMap)); renderFactor(); toast("已删除"); }
+window.onload=function(){ loadLocalData(); let mon=""; for(let i=1;i<=12;i++) mon+=`<option value="${i.toString().padStart(2,0)}">${i}月</option>`; document.getElementById("month").innerHTML=mon; document.getElementById("mMonth").innerHTML=mon; fillYearSelect("year"); fillYearSelect("mYear"); initDate(); document.getElementById("year").addEventListener("change",()=>refreshDay("day","year","month")); document.getElementById("month").addEventListener("change",()=>refreshDay("day","year","month")); document.getElementById("mYear").addEventListener("change",()=>refreshDay("mDay","mYear","mMonth")); document.getElementById("mMonth").addEventListener("change",()=>refreshDay("mDay","mYear","mMonth")); loadConfig(); initDefaultJob(); calc(); renderManualResult(); renderRecords(); refreshSyncUI(); initCloud().catch(e=>console.warn(e)); document.getElementById("output").value="0"; document.getElementById("factor").value="1.0"; document.getElementById("extra").value="0"; calc(); };
 </script>
 </body>
 </html>
